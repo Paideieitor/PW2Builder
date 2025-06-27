@@ -352,7 +352,7 @@ bool LoadDataFile(const string& path, vector<string>& data)
 	if (!file)
 	{
 		printf_s("Couldn't open %s\n", path.c_str());
-		printf_s("	Error opening build settings file\n");
+		printf_s("	Error opening whitelist file\n");
 		return false;
 	}
 
@@ -457,8 +457,7 @@ bool GetFolderCompilationData(const string& path, CompileStructure& data)
 	vector<string> directoryEntries = FolderGetList(path);
 	if (!directoryEntries.size())
 	{
-		printf_s("Couldn't Compile %s\n", path.c_str());
-		printf_s("	No files in folder\n");
+		printf_s("No compilable data found in %s!\n", path.c_str());
 		return false;
 	}
 	
@@ -618,6 +617,9 @@ OutputObject CompileCompObject(const string& path, const CompileObject& object, 
 }
 OutputObject CompileCompStruct(const string& path, const CompileStructure& structure, string& buildScript, OutputObject* externMerge = nullptr)
 {
+	if (externMerge && externMerge->path.empty())
+		externMerge = nullptr;
+
 	buildScript += ECHO_SUBTITLE(structure.name + " is compiling...");
 
 	vector<OutputObject> compiled;
@@ -692,9 +694,11 @@ bool BuildPatches(const string& path, const vector<CompileStructure>& patches, c
 {
 	buildScript += ECHO_TITLE("Building Patches...");
 
-	OutputObject globalOut = CompileCompStruct(BUILD_DIR, global, buildScript, nullptr);
-	if (globalOut.path.empty())
-		return false;
+	OutputObject globalOut;
+	if (!global.objects.empty())
+		globalOut = CompileCompStruct(BUILD_DIR, global, buildScript, nullptr);
+	else
+		printf_s("No compilable data found in global!\n");
 
 	vector<OutputObject> patchesOut;
 	unsigned int upToDate = 0;
@@ -804,12 +808,10 @@ bool Build()
 		return false;
 
 	CompileStructure global;
-	if (!GetFolderCompilationData(GLOBAL_DIR, global))
-		return false;
+	GetFolderCompilationData(GLOBAL_DIR, global);
 
 	vector<CompileStructure> patches;
-	if (!GetPatchesCompilationData(PATCH_DIR, patches))
-		return false;
+	GetPatchesCompilationData(PATCH_DIR, patches);
 
 	vector<CompileObject> libraries;
 	GetLibrariesCompilationData(LIB_DIR, libraries);

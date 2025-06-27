@@ -1,2 +1,58 @@
 # PW2Builder
-Pokémon Generation 5 PMC code injection patch builder
+Pokémon Generation 5 PMC code injection patch builder  
+
+## How to install
+- This builder attaches to your CTRMap project, so you will need to set up that first
+  - Install [CTRMap-CE](https://github.com/ds-pokemon-hacking/CTRMap-CE/releases)
+  - Install [CTRMapV](https://github.com/ds-pokemon-hacking/CTRMapV/releases)
+  - Create your project
+  - Install [PMC](https://github.com/ds-pokemon-hacking/PMC/releases)
+- Download the latest release of PW2Builder (if you are not using Windows you will have to build your own executable with CMake and put it in the ``Builder`` folder)
+- Execute the ``ExternalDependencies\install_dependencies.bat`` file (if you are not in Windows you will need to change the name to ``install_dependencies.sh``)
+- Download [ARM GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
+- Open ``Builder\buildSettings.txt``
+  - Write the path to your CTRMap project after ``SET PROJECT_DIR=`` (Ex. ``SET PROJECT_DIR=MyFolder\MyCTRMapProject\``)
+  - Write the path to your CTRMap.jar file after ``SET CTRMAP_DIR=`` (Ex. ``SET CTRMAP_DIR=MyFolder\CTRMap\``)
+  - Write the path to your ARM GNU Toolchain bin folder after ``SET ARM_NONE_EABI_DIR=`` (leave like it is if you set that folder in the systems path)
+  - Write the path to your Java after ``SET JAVA_DIR=`` (leave like it is if you set that folder in the systems path)
+
+## How to use
+### Settings
+The ``settings.h`` file is to be used to declare pre-compilation definitions that are used to enable or disable code sections and assets  
+This is useful if you want to be able to activate and desavtivate features of your patch, if that is not the case you can leave it empty
+### Create a patch
+Each folder in the ``Patches`` folder will compile all the *.cpp* files it contains into a *.dll* file  
+You can add code that is used across multiple patches by putting that code inside the ``Global`` folder  
+Any code that hooks functions from the game should be in a patch   
+This are the folders that are automatically set as include directories:
+  - ``PW2Builder``
+    - ``ExternalDependencies\swan``
+    - ``ExternalDependencies\NitroKernel\include``
+    - ``ExternalDependencies\libRPM\include``
+    - ``ExternalDependencies\ExtLib``
+	- ``Global`
+	- ``Headers``
+Make sure that any referenced or hooked game functions are in the ``ESDB.yml`` file
+### Add assets
+Some patches will not only inject code but also modify or add NARCs  
+Any file in the ``Data`` folder will be copied to the filesystem in CTRMap when building
+Using the ``-whitelist-assets`` or ``whitelist-all`` commands when building you can filter the files that will be copied using the ``Data\whitelist.txt`` file
+  - Each whitelisted file needs to be in its own line in the file
+  - You can use pre-compiler conditionals using the definitions in the ``settings.h`` file to enable and disable the assets copied depending on the active features
+### Add libraries
+Code that does not contain hooks to game functions can be loaded and unloaded at runtime using the functions in ``ExternalDependencies\NitroKernel\include\kDll.h``  
+This is useful to reduce the default size of patches  
+Each *.cpp* file in the ``Libraries`` folder, including its subfolder, will be compiled as its own *.dll* file  
+Using the ``-whitelist-libs`` or ``whitelist-all`` commands when building you can filter the folders inside ``Libraries`` that will be accesed to compile files using the ``Libraries\whitelist.txt`` file
+  - Each whitelisted folder needs to be in its own line in the file
+  - You can use pre-compiler conditionals using the definitions in the ``settings.h`` file to enable and disable the libraries compiled depending on the active features
+### Functionality
+Once your patch is done you have the following commands when running the program:
+  - ``-build``: build only the modified files in the patch
+  - ``-rebuild``: build the patch from scratch
+    - ``-whitelist-libs``: ignore any folder in ``Libraries`` that is not specified in ``Libraries\whitelist.txt``
+    - ``-whitelist-assets``: ignore any file in ``Assets`` that is not specified in ``Assets\whitelist.txt``
+    - ``-whitelist-all``: activate all whitelist functionalities
+  - ``-clear``: clear all build data (deletes ``build`` folder)
+  - ``-uninstall``: remove the patch completely from the CTRMap project
+I recommend to uninstall before building after changing values in the ``settings.h`` file
