@@ -40,7 +40,7 @@ using namespace std;
 #define PROJECT_PATCH_DIR(projectDir) PathConcat(PROJECT_ASSETS_DIR(projectDir), "patches")
 #define PROJECT_LIB_DIR(projectDir) PathConcat(PROJECT_ASSETS_DIR(projectDir), "lib")
 
-#ifdef _WIN32 || _WIN64
+#ifdef _WIN32
 #define SCRIPT_TERMINATION ".bat"
 #else
 #define SCRIPT_TERMINATION ".sh"
@@ -371,6 +371,7 @@ bool LoadDataFile(const string& path, vector<string>& data)
 	}
 
 	fclose(file);
+	return true;
 }
 bool FindData(bool condition, const string& dataName, vector<string> data)
 {
@@ -869,8 +870,8 @@ bool Uninstall()
 }
 void Help()
 {
-	const char* help = "-build -> build only the modified files in the patch\n-rebuild -> build the patch from scratch\n\t-whitelist-libs -> ignore any folder in \"Libraries\" that is not\n\t  specified in \"Libraries\whitelist.txt\"\n\t-whitelist-assets -> ignore any file in \"Assets\" that is not\n\t  specified in \"Assets\whitelist.txt\"\n\t-whitelist-all -> activate all whitelist functionalities\n-clear -> clear all build data (deletes \"build\" folder)\n-uninstall -> remove the patch completely from the CTRMap project\n";
-	printf_s("%s\n", help);
+	const char* help = "-build -> build only the modified files in the patch\n-rebuild -> build the patch from scratch\n\t-whitelist-libs -> ignore any folder in \"Libraries\" that is not\n\t  specified in \"Libraries\\whitelist.txt\"\n\t-whitelist-assets -> ignore any file in \"Assets\" that is not\n\t  specified in \"Assets\\whitelist.txt\"\n\t-whitelist-all -> activate all whitelist functionalities\n-clear -> clear all build data (deletes \"build\" folder)\n-uninstall -> remove the patch completely from the CTRMap project\n";
+	printf_s("%s", help);
 }
 
 #define BUILD_COMMAND "-build"
