@@ -2,11 +2,12 @@
 Pokémon Generation 5 PMC code injection patch builder  
 
 ## How to install
+``NOTE: Make sure you have both Git and Java installed in your computer``
 - This builder attaches to your CTRMap project, so you will need to set up that first
   - Install [CTRMap-CE](https://github.com/ds-pokemon-hacking/CTRMap-CE/releases)
   - Install [CTRMapV](https://github.com/ds-pokemon-hacking/CTRMapV/releases)
-  - Create your project
-  - Install [PMC](https://github.com/ds-pokemon-hacking/PMC/releases)
+  - Create your CTRMap project
+  - Install [PMC](https://github.com/ds-pokemon-hacking/PMC/releases) on to your project (you can follow this [guide](https://ds-pokemon-hacking.github.io/docs/generation-v/guides/bw_b2w2-code_injection/#setting-up-the-environment))
 - Download the latest release of PW2Builder (if you are not using Windows you will have to build your own executable with CMake and put it in the ``Builder`` folder)
 - Execute the ``ExternalDependencies\install_dependencies.bat`` file (if you are not in Windows you will need to change the name to ``install_dependencies.sh``)
 - Download [ARM GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
@@ -21,18 +22,26 @@ Pokémon Generation 5 PMC code injection patch builder
 The ``settings.h`` file is to be used to declare pre-compilation definitions that are used to enable or disable code sections and assets  
 This is useful if you want to be able to activate and desavtivate features of your patch, if that is not the case you can leave it empty
 ### Create a patch
-Each folder in the ``Patches`` folder will compile all the *.cpp* files it contains into a *.dll* file  
-You can add code that is used across multiple patches by putting that code inside the ``Global`` folder  
+- Create a folder in the ``Patches`` folder with the name you want your patch to have  
+``NOTE: Each folder in the ``Patches`` folder will compile all the compilable files (*.cpp*, *.c* and *.S*) into a *.dll* file``  
+- Put the code to be injected in the folder you created
+``NOTE: You can add code that is used across multiple patches by putting that code inside the "Global" folder``  
+- Make sure that any referenced or hooked game functions are in the ``ESDB.yml`` file
+  - The release comes with the [PW2Code](https://github.com/Paideieitor/PW2Code) ESDB file
+  - If you need to add new fuctions you can do so manually or create a new ESDB from an IDB using this [guide](https://ds-pokemon-hacking.github.io/docs/generation-v/guides/bw_b2w2-code_injection/#symbol-maps)
+```
+TIPS:
 Any code that hooks functions from the game should be in a patch   
 This are the folders that are automatically set as include directories:
   - ``PW2Builder``
-    - ``ExternalDependencies\swan``
-    - ``ExternalDependencies\NitroKernel\include``
-    - ``ExternalDependencies\libRPM\include``
-    - ``ExternalDependencies\ExtLib``
-	- ``Global`
-	- ``Headers``
-Make sure that any referenced or hooked game functions are in the ``ESDB.yml`` file
+    - ``ExternalDependencies``
+        - ``swan``
+        - ``NitroKernel\include``
+        - ``libRPM\include``
+        - ``ExtLib``
+    - ``Global`
+    - ``Headers``
+```
 ### Add assets
 Some patches will not only inject code but also modify or add NARCs  
 Any file in the ``Data`` folder will be copied to the filesystem in CTRMap when building
