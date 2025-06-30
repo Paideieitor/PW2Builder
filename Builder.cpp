@@ -13,6 +13,8 @@ using namespace std;
 #define SEPARATOR '\\'
 #define NOT_SEPARATOR '/'
 
+#define PATH_FORMAT(path) string("\"") + path + string("\"")
+
 #define MAIN_DIR ".."
 
 #define BUILD_DIR PathConcat(MAIN_DIR, "build")
@@ -53,21 +55,21 @@ using namespace std;
 #define ECHO_TAB(str) ""// string("echo \t") + str + '\n'
 
 #define COMPILER string(ARM_NONE_EABI_DIR) + "arm-none-eabi-g++ "
-#define COMPILE_INCLUDE(path) string("-I ") + path + ' '
+#define COMPILE_INCLUDE(path) string("-I ") + PATH_FORMAT(path) + ' '
 #define COMPILE_INCLUDE_DIRS COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, SWAN_DIR)) + COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, EXTLIB_DIR)) + COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, NK_DIR)) + COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, LIBRPM_DIR)) + COMPILE_INCLUDE(HEADER_DIR) + COMPILE_INCLUDE(GLOBAL_DIR)
-#define COMPILE_OUTPUT(path) string("-o ") + path + ' '
+#define COMPILE_OUTPUT(path) string("-o ") + PATH_FORMAT(path) + ' '
 #define COMPILE_FLAGS "-r -mthumb -march=armv5t -Os -mlong-calls"
 #define COMPILE_EXTENSION(compileType) ((compileType == CPP) ? ".o" : "ARM.o")
 
 #define MERGER string(ARM_NONE_EABI_DIR) + "arm-none-eabi-ld "
 #define MERGE_FLAGS "-r "
-#define MERGE_OUTPUT(path) string("-o ") + path + ' '
+#define MERGE_OUTPUT(path) string("-o ") + PATH_FORMAT(path) + ' '
 
-#define LINKER string(JAVA_DIR) + "java -cp " + CTRMAP_DIR + "CTRMap.jar rpm.cli.RPMTool "
-#define LINK_INPUT(path) string("-i ") + path + ' '
+#define LINKER string(JAVA_DIR) + "java -cp \"" + CTRMAP_DIR + "CTRMap.jar\" rpm.cli.RPMTool "
+#define LINK_INPUT(path) string("-i ") + PATH_FORMAT(path) + ' '
 #define LINK_EXTENSION ".dll"
-#define LINK_OUTPUT(path) string("-o ") + path + ' '
-#define LINK_ESDB string("--esdb ") + ESDB_DIR + ' '
+#define LINK_OUTPUT(path) string("-o ") + PATH_FORMAT(path) + ' '
+#define LINK_ESDB string("--esdb ") + PATH_FORMAT(ESDB_DIR) + ' '
 #define LINK_FLAGS "--fourcc DLXF --generate-relocations"
 
 #define BUILD_SETTINGS_PATH "buildSettings.txt"
@@ -80,7 +82,7 @@ using namespace std;
 #define SETTINGS_LIBRARIES PathConcat(LIB_DIR, SETTINGS_WHITELIST)
 #define SETTINGS_ASSETS PathConcat(ASSETS_DIR, SETTINGS_WHITELIST)
 #define SETTINGS_PRECOMP_FLAGS "-x c -E "
-#define SETTINGS_INCLUDE(path) string("-include ") + path + ' '
+#define SETTINGS_INCLUDE(path) string("-include ") + PATH_FORMAT(path) + ' '
 #define SETTINGS_EXTENSION ".data"
 
 enum CompileType
@@ -314,7 +316,7 @@ string ProcompileDataFile(const string& path)
 	string command = COMPILER;
 	command += SETTINGS_PRECOMP_FLAGS;
 	command += SETTINGS_INCLUDE(SETTINGS_FILE);
-	command += path + ' ';
+	command += PATH_FORMAT(path) + ' ';
 
 	string name = PathGetLastName(PathRemoveLast(path, true));
 	string output = PathConcat(BUILD_DIR, name) + SETTINGS_EXTENSION;
@@ -440,7 +442,7 @@ void AddInstallLog(const string& installPath)
 CompileType GetCompileType(const string& path)
 {
 	string extension = LowerCase(PathGetExtension(path));
-	if (extension == "cpp")
+	if (extension == "cpp" || extension == "c")
 		return CPP;
 	if (extension == "s")
 		return ARM;
@@ -595,7 +597,7 @@ OutputObject CompileCompObject(const string& path, const CompileObject& object, 
 		buildScript += ECHO(object.name + " is compiling...");
 
 		string command = COMPILER;
-		command += object.input + ' ';
+		command += PATH_FORMAT(object.input) + ' ';
 
 		switch (object.type)
 		{
@@ -654,9 +656,9 @@ OutputObject CompileCompStruct(const string& path, const CompileStructure& struc
 	command += MERGE_FLAGS;
 	command += MERGE_OUTPUT(output);
 	for (size_t compIdx = 0; compIdx < compiled.size(); ++compIdx)
-		command += compiled[compIdx].path + ' ';
+		command += PATH_FORMAT(compiled[compIdx].path) + ' ';
 	if (externMerge)
-		command += externMerge->path;
+		command += PATH_FORMAT(externMerge->path);
 
 	buildScript += command + '\n';
 	return { structure.name, output, false };
