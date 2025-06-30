@@ -23,7 +23,7 @@ The ``settings.h`` file is to be used to declare pre-compilation definitions tha
 This is useful if you want to be able to activate and desavtivate features of your patch, if that is not the case you can leave it empty
 ### Create a patch
 - Create a folder in the ``Patches`` folder with the name you want your patch to have  
-``NOTE: Each folder in the ``Patches`` folder will compile all the compilable files (*.cpp*, *.c* and *.S*) into a *.dll* file``  
+``NOTE: Each folder in the "Patches" folder will compile all the compilable files (.cpp, .c and .S) into a .dll file``  
 - Put the code to be injected in the folder you created
 ``NOTE: You can add code that is used across multiple patches by putting that code inside the "Global" folder``  
 - Make sure that any referenced or hooked game functions are in the ``ESDB.yml`` file
