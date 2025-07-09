@@ -84,6 +84,7 @@ using namespace std;
 #define SETTINGS_PRECOMP_FLAGS "-x c -E "
 #define SETTINGS_INCLUDE(path) string("-include ") + PATH_FORMAT(path) + ' '
 #define SETTINGS_EXTENSION ".data"
+#define SETTINGS_GROUP_KEYWORD "<...>"
 
 enum CompileType
 {
@@ -204,6 +205,54 @@ bool FileIsUptoDate(const string& input, const string& output)
 	if (outTime > inTime)
 		return true;
 	return false;
+}
+bool FileCompare(const string& input, const string& output)
+{
+	std::error_code ec;
+	size_t size = filesystem::file_size(input, ec);
+	if (size == 0 || size != filesystem::file_size(output, ec))
+		return false;
+
+	FILE* inputFile = nullptr;
+	fopen_s(&inputFile, input.c_str(), "rb");
+	if (!inputFile)
+		return false;
+
+	char* data = new char[size * 2];
+	if (fread_s(data, size, sizeof(char), size, inputFile) != size)
+	{
+		delete[] data;
+		fclose(inputFile);
+		return false;
+	}
+	fclose(inputFile);
+
+	FILE* outputFile = nullptr;
+	fopen_s(&outputFile, output.c_str(), "rb");
+	if (!outputFile)
+	{
+		delete[] data;
+		return false;
+	}
+	if (fread_s(data + size, size, sizeof(char), size, outputFile) != size)
+	{
+		delete[] data;
+		fclose(outputFile);
+		return false;
+	}
+	fclose(outputFile);
+
+	for (size_t idx = 0; idx < size; ++idx)
+	{
+		if (data[idx] != data[idx + size])
+		{
+			delete[] data;
+			return false;
+		}
+	}
+
+	delete[] data;
+	return true;
 }
 
 vector<string> FolderGetList(const string& path)
@@ -367,7 +416,35 @@ bool LoadDataFile(const string& path, vector<string>& data)
 			string line(lineData);
 			CleanLine(line);
 			if (!line.empty())
-				data.push_back(line);
+			{
+				size_t groupIdx = line.find(SETTINGS_GROUP_KEYWORD);
+				if (groupIdx != string::npos)
+				{
+					string startPath = line.substr(0, groupIdx);
+					string endPath = line.substr(groupIdx + strlen(SETTINGS_GROUP_KEYWORD));
+					CleanLine(startPath);
+					CleanLine(endPath);
+
+					string groupPath = PathRemoveLast(startPath);
+					if (groupPath != PathRemoveLast(endPath))
+					{
+						printf("ERROR: Failed to load group!\n");
+						printf("    Start and end are in different directories\n");
+					}
+					else
+					{
+						startPath = PathGetLastName(startPath);
+						endPath = PathGetLastName(endPath);
+						int start = stoi(startPath);
+						int end = stoi(endPath);
+
+						for (start; start <= end; ++start)
+							data.push_back(groupPath + to_string(start));
+					}
+				}
+				else
+					data.push_back(line);
+			}
 		}
 		fgets(lineData, BUILD_SETTINGS_MAX_SIZE, file);
 	}
@@ -756,6 +833,13 @@ bool BuildLibraries(const string& path, const vector<CompileObject>& libraries, 
 	return true;
 }
 
+enum AssetsHandling
+{
+	ASK = 0,
+	OVERRIDE = 1,
+	KEEP = 2,
+};
+AssetsHandling assetsHandling = ASK;
 void MoveData(const string& directory, const string& output, const string& folder = string())
 {
 	string path = PathConcat(directory, folder);
@@ -782,8 +866,36 @@ void MoveData(const string& directory, const string& output, const string& folde
 				continue;
 			
 			string outputFile = PathConcat(output, assetFolder);
-			if (FileIsUptoDate(entry, outputFile))
-				continue;
+			if (filesystem::exists(outputFile))
+			{
+				if (FileCompare(entry, outputFile))
+					continue;
+				else
+				{
+					switch (assetsHandling)
+					{
+					case ASK:
+					{
+						printf_s("The file %s has been modified, do you want to override it?\n", outputFile.c_str());
+						printf_s("You select a default setting by using the \"-assets-override\" or \"-assets-keep\" options\n");
+						printf_s("(Yes: Y) (No: N)\n");
+						char response = getchar();
+						if (response != 'y' && response != 'Y')
+						{
+							printf_s("    The file %s was kept\n", outputFile.c_str());
+							continue;
+						}
+						break;
+					}
+					case OVERRIDE:
+						printf_s("The file %s was overriden\n", outputFile.c_str());
+						break;
+					case KEEP:
+						printf_s("The file %s was kept\n", outputFile.c_str());
+						continue;
+					}
+				}
+			}
 
 			std::error_code ec;
 			if (!filesystem::copy_file(entry, outputFile, filesystem::copy_options::overwrite_existing, ec))
@@ -872,8 +984,15 @@ bool Uninstall()
 }
 void Help()
 {
-	const char* help = "-build -> build only the modified files in the patch\n-rebuild -> build the patch from scratch\n\t-whitelist-libs -> ignore any folder in \"Libraries\" that is not\n\t  specified in \"Libraries\\whitelist.txt\"\n\t-whitelist-assets -> ignore any file in \"Assets\" that is not\n\t  specified in \"Assets\\whitelist.txt\"\n\t-whitelist-all -> activate all whitelist functionalities\n-clear -> clear all build data (deletes \"build\" folder)\n-uninstall -> remove the patch completely from the CTRMap project\n";
-	printf_s("%s", help);
+	printf_s("-build -> build only the modified files in the patch\n");
+	printf_s("-rebuild -> build the patch from scratch\n");
+	printf_s("    -whitelist-libs -> ignore any folder in \"Libraries\" that is not specified in \"Libraries\\whitelist.txt\"\n");
+	printf_s("    -whitelist-assets -> ignore any file in \"Assets\" that is not specified in \"Assets\\whitelist.txt\"\n");
+	printf_s("    -whitelist-all -> activate all whitelist functionalities\n");
+	printf_s("    -assets-override -> when a conflict appears when moving assets, the project asset gets automatically overriden\n");
+	printf_s("    -assets-keep -> when a conflict appears when moving assets, the asset is not moved keeping the project asset\n");
+	printf_s("-clear -> clear all build data (deletes \"build\" folder)\n");
+	printf_s("-uninstall -> remove the patch completely from the CTRMap project\n");
 }
 
 #define BUILD_COMMAND "-build"
@@ -881,14 +1000,17 @@ void Help()
 	#define WHITELIST_ALL_COMMAND "-whitelist-all"
 	#define WHITELIST_LIBS_COMMAND "-whitelist-libs"
 	#define WHITELIST_ASSETS_COMMAND "-whitelist-assets"
+	#define ASSETS_OVERRIDE_COMMAND "-assets-override"
+	#define ASSETS_KEEP_COMMAND "-assets-keep"
 #define CLEAR_COMMAND "-clear"
 #define UNINSTALL_COMMAND "-uninstall"
 int main(int argc, char* argv[])
 {
 #if _DEBUG
-		whitelistLibs = true;
-		whitelistAssets = true;
-		Build();
+	whitelistLibs = true;
+	whitelistAssets = true;
+	assetsHandling = ASK;
+	Build();
 #else
 	if (argc > 1)
 	{
@@ -903,6 +1025,10 @@ int main(int argc, char* argv[])
 				whitelistLibs = true;
 			else if (strcmp(argv[arg], WHITELIST_ASSETS_COMMAND) == 0)
 				whitelistAssets = true;
+			else if (strcmp(argv[arg], ASSETS_OVERRIDE_COMMAND) == 0)
+				assetsHandling = OVERRIDE;
+			else if (strcmp(argv[arg], ASSETS_KEEP_COMMAND) == 0)
+				assetsHandling = KEEP;
 		}
 
 		if (strcmp(argv[1], BUILD_COMMAND) == 0)
