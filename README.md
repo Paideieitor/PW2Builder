@@ -46,15 +46,16 @@ This are the folders that are automatically set as include directories:
 Some patches will not only inject code but also modify or add NARCs  
 Any file in the ``Data`` folder will be copied to the filesystem in CTRMap when building
 Using the ``-whitelist-assets`` or ``whitelist-all`` commands when building you can filter the files that will be copied using the ``Data\whitelist.txt`` file
-  - Each whitelisted file needs to be in its own line in the file
-  - You can use pre-compiler conditionals using the definitions in the ``settings.h`` file to enable and disable the assets copied depending on the active features
 ### Add libraries
 Code that does not contain hooks to game functions can be loaded and unloaded at runtime using the functions in ``ExternalDependencies\NitroKernel\include\kDll.h``  
 This is useful to reduce the default size of patches  
 Each *.cpp* file in the ``Libraries`` folder, including its subfolder, will be compiled as its own *.dll* file  
 Using the ``-whitelist-libs`` or ``whitelist-all`` commands when building you can filter the folders inside ``Libraries`` that will be accesed to compile files using the ``Libraries\whitelist.txt`` file
-  - Each whitelisted folder needs to be in its own line in the file
-  - You can use pre-compiler conditionals using the definitions in the ``settings.h`` file to enable and disable the libraries compiled depending on the active features
+### Whitelist Sintax
+Each whitelisted item needs to be in its own line in the file  
+You can use pre-compiler conditionals using the definitions in the ``settings.h`` file to enable and disable the libraries compiled depending on the active features  
+You can define a group by writting 2 items in the same line separated by ``<...>``, this will whitelist the written items and all the items in between  
+  - Example: ``a\10 <...> a\15`` will whitelist ``a\10``, ``a\11``, ``a\12``, ``a\13``, ``a\14``, and ``a\15``
 ### Functionality
 Once your patch is done you have the following commands when running the program:
   - ``-build``: build only the modified files in the patch
@@ -62,6 +63,8 @@ Once your patch is done you have the following commands when running the program
     - ``-whitelist-libs``: ignore any folder in ``Libraries`` that is not specified in ``Libraries\whitelist.txt``
     - ``-whitelist-assets``: ignore any file in ``Assets`` that is not specified in ``Assets\whitelist.txt``
     - ``-whitelist-all``: activate all whitelist functionalities
+    - ``-assets-override``: when a conflict appears when moving assets, the project asset gets automatically overriden
+    - ``-assets-keep``: when a conflict appears when moving assets, the asset is not moved keeping the project asset
   - ``-clear``: clear all build data (deletes ``build`` folder)
   - ``-uninstall``: remove the patch completely from the CTRMap project
 I recommend to uninstall before building after changing values in the ``settings.h`` file
