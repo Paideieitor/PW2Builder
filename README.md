@@ -1,8 +1,8 @@
 # PW2Builder
 Pokémon Generation 5 PMC code injection patch builder  
+``NOTE: The ESDB provided by the release is exclusively for Pokémon White 2``
 
 ## How to install
-``NOTE: Make sure you have both Git and Java installed in your computer``
 - Install [Java](https://www.java.com/es/download/manual.jsp)
 - Install [Git](https://git-scm.com/downloads)
 - This builder attaches to your CTRMap project, if you don't already have one you will need to set up that first:
