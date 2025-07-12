@@ -4,7 +4,7 @@ Pokémon Generation 5 PMC code injection patch builder
 ## How to install
 ``NOTE: Make sure you have both Git and Java installed in your computer``
 - Install Java (24 or newer) if you don't have it
-- Install Git if you don't have it
+- Install [Git](https://git-scm.com/downloads) if you don't have it
 - This builder attaches to your CTRMap project, if you don't already have one you will need to set up that first:
   - Install [CTRMap-CE](https://github.com/ds-pokemon-hacking/CTRMap-CE/releases)
   - Install [CTRMapV](https://github.com/ds-pokemon-hacking/CTRMapV/releases)
