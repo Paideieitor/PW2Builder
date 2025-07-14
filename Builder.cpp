@@ -54,18 +54,18 @@ using namespace std;
 #define ECHO(str) string("echo ") + str + '\n'
 #define ECHO_TAB(str) ""// string("echo \t") + str + '\n'
 
-#define COMPILER string(ARM_NONE_EABI_DIR) + "arm-none-eabi-g++ "
+#define COMPILER string("\"") + ARM_NONE_EABI_DIR + "arm-none-eabi-g++" + "\" "
 #define COMPILE_INCLUDE(path) string("-I ") + PATH_FORMAT(path) + ' '
 #define COMPILE_INCLUDE_DIRS COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, SWAN_DIR)) + COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, EXTLIB_DIR)) + COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, NK_DIR)) + COMPILE_INCLUDE(PathConcat(EXTERNAL_DIR, LIBRPM_DIR)) + COMPILE_INCLUDE(HEADER_DIR) + COMPILE_INCLUDE(GLOBAL_DIR)
 #define COMPILE_OUTPUT(path) string("-o ") + PATH_FORMAT(path) + ' '
 #define COMPILE_FLAGS "-r -mthumb -march=armv5t -Os -mlong-calls"
 #define COMPILE_EXTENSION(compileType) ((compileType == CPP) ? ".o" : "ARM.o")
 
-#define MERGER string(ARM_NONE_EABI_DIR) + "arm-none-eabi-ld "
+#define MERGER string("\"") + ARM_NONE_EABI_DIR + "arm-none-eabi-ld" + "\" "
 #define MERGE_FLAGS "-r "
 #define MERGE_OUTPUT(path) string("-o ") + PATH_FORMAT(path) + ' '
 
-#define LINKER string(JAVA_DIR) + "java -cp \"" + CTRMAP_DIR + "CTRMap.jar\" rpm.cli.RPMTool "
+#define LINKER string("\"") + JAVA_DIR + "java\" -cp \"" + CTRMAP_DIR + "CTRMap.jar\" rpm.cli.RPMTool "
 #define LINK_INPUT(path) string("-i ") + PATH_FORMAT(path) + ' '
 #define LINK_EXTENSION ".dll"
 #define LINK_OUTPUT(path) string("-o ") + PATH_FORMAT(path) + ' '
@@ -397,6 +397,7 @@ bool LoadDataFile(const string& path, vector<string>& data)
 	string precompiled = ProcompileDataFile(path);
 	if (precompiled.empty())
 		return false;
+		
 
 	FILE* file = nullptr;
 	fopen_s(&file, precompiled.c_str(), "r");
@@ -465,7 +466,8 @@ bool FindData(bool condition, const string& dataName, vector<string> data)
 	return false;
 }
 
-vector<string> installLog;
+#define INSTALL_LOG_SEPARATOR '<'
+vector<pair<string, string>> installLog;
 void LoadInstallLog(const string& path)
 {
 	FILE* file = nullptr;
@@ -473,18 +475,26 @@ void LoadInstallLog(const string& path)
 	if (!file)
 		return;
 
-	char line[BUILD_SETTINGS_MAX_SIZE];
-	fgets(line, BUILD_SETTINGS_MAX_SIZE, file);
+	char lineData[BUILD_SETTINGS_MAX_SIZE];
+	fgets(lineData, BUILD_SETTINGS_MAX_SIZE, file);
 	while (!feof(file))
 	{
-		installLog.push_back(line);
+		string line = string(lineData);
+		size_t separatorIdx = line.find(INSTALL_LOG_SEPARATOR);
 
-		string& log = installLog.back();
-		size_t lastEntry = log.length() - 1;
-		if (log[lastEntry] == '\n')
-			log.erase(log.begin() + lastEntry);
+		string destination = line;
+		string source = string();
+		if (separatorIdx != string::npos)
+		{
+			destination = line.substr(0, separatorIdx);
+			source = line.substr(separatorIdx + 1);
+			CleanLine(source);
+		}
+		CleanLine(destination);
 
-		fgets(line, BUILD_SETTINGS_MAX_SIZE, file);
+		installLog.push_back(make_pair(destination, source));
+
+		fgets(lineData, BUILD_SETTINGS_MAX_SIZE, file);
 	}
 
 	fclose(file);
@@ -502,18 +512,23 @@ void SaveInstallLog(const string& path)
 
 	for (size_t log = 0; log < installLog.size(); ++log)
 	{
-		fwrite(installLog[log].c_str(), sizeof(char), installLog[log].length(), file);
+		fwrite(installLog[log].first.c_str(), sizeof(char), installLog[log].first.length(), file);
+		if (!installLog[log].second.empty())
+		{
+			fputc(INSTALL_LOG_SEPARATOR, file);
+			fwrite(installLog[log].second.c_str(), sizeof(char), installLog[log].second.length(), file);
+		}
 		fputc('\n', file);
 	}
 	fclose(file);
 }
-void AddInstallLog(const string& installPath)
+void AddInstallLog(const string& installPath, const string& sourcePath)
 {
 	for (size_t log = 0; log < installLog.size(); ++log)
-		if (installLog[log] == installPath)
+		if (installLog[log].first == installPath)
 			return;
 
-	installLog.push_back(installPath);
+	installLog.push_back(make_pair(installPath, sourcePath));
 }
 
 CompileType GetCompileType(const string& path)
@@ -765,7 +780,7 @@ void LinkCompOutputs(const string& path, const vector<OutputObject>& outputs, st
 
 			buildScript += command + '\n';
 
-			AddInstallLog(output);
+			AddInstallLog(output, string());
 		}
 	}
 }
@@ -905,7 +920,7 @@ void MoveData(const string& directory, const string& output, const string& folde
 			}
 
 			printf("Added file: %s \n", outputFile.c_str());
-			AddInstallLog(outputFile);
+			AddInstallLog(outputFile, entry);
 		}
 	}
 }
@@ -917,38 +932,49 @@ bool Build()
 	if (!FolderCreate(BUILD_DIR))
 		return false;
 
+	printf_s("--- LOADING DATA ---\n");
 	if (whitelistLibs && !LoadDataFile(SETTINGS_LIBRARIES, libraryData))
 		return false;
 	if (whitelistAssets && !LoadDataFile(SETTINGS_ASSETS, assetsData))
 		return false;
 
+	printf_s("--- COMPILE DATA ---\n");
+	printf_s("- GLOBALS -\n");
 	CompileStructure global;
 	GetFolderCompilationData(GLOBAL_DIR, global);
 
+	printf_s("- PATCHES -\n");
 	vector<CompileStructure> patches;
 	GetPatchesCompilationData(PATCH_DIR, patches);
 
+	printf_s("- LIBRARIES -\n");
 	vector<CompileObject> libraries;
 	GetLibrariesCompilationData(LIB_DIR, libraries);
 
+	printf_s("--- BUILD SCRIPT ---\n");
 	string buildScript = "@ECHO OFF\n";
 	string projectDir = AddScriptSettings(BUILD_SETTINGS_PATH, buildScript);
 	if (projectDir.empty())
 		return false;
 
+	printf_s("- PATCHES -\n");
 	if (!BuildPatches(PROJECT_PATCH_DIR(projectDir), patches, global, buildScript))
 		return false;
+	printf_s("- LIBRARIES -\n");
 	if (!BuildLibraries(PROJECT_LIB_DIR(projectDir), libraries, buildScript))
 		return false;
 
+	printf_s("--- CREATING SCRIPT ---\n");
 	string script = SCRIPT_PATH("build");
 	if (!CreateScript(script, buildScript))
 		return false;
 
+	printf_s("--- MOVING DATA ---\n");
 	MoveData(ASSETS_DIR, PROJECT_ASSETS_DIR(projectDir));
 
 	SaveInstallLog(BUILD_INSTALL_LOG);
 
+	printf_s("--- BUILD PROCESS ---\n");
 	system(script.c_str());
 	return true;
 }
@@ -972,9 +998,31 @@ bool Uninstall()
 	LoadInstallLog(BUILD_INSTALL_LOG);
 
 	for (size_t log = 0; log < installLog.size(); ++log)
-		if (PathRemove(installLog[log]))
-			printf("Removed file: %s\n", installLog[log].c_str());
+	{
+		const string& installedFile = installLog[log].first;
+		if (filesystem::exists(installedFile))
+		{
+			if (!installLog[log].second.empty())
+			{
+				if (!FileCompare(installLog[log].second, installedFile))
+				{
+					printf_s("The file %s has been modified, do you want to remove it?\n", installedFile.c_str());
+					printf_s("(Yes: Y) (No: N)\n");
+					char response[64];
+					scanf_s("%s", response, 64);
+					if (response[0] != 'y' && response[0] != 'Y')
+					{
+						printf_s("Kept file: %s\n", installedFile.c_str());
+						continue;
+					}
+				}
+			}
 
+			if (PathRemove(installedFile))
+				printf("Removed file: %s\n", installedFile.c_str());
+		}
+	}
+		
 	installLog.clear();
 	PathRemove(BUILD_INSTALL_LOG);
 
