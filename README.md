@@ -12,11 +12,6 @@ Pokémon Generation 5 PMC code injection patch builder
 - Download the latest release of PW2Builder (if you are not using Windows you will have to build your own executable with CMake and put it in the ``Builder`` folder)
 - Download [ARM GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
 ``Note: If you are in windows download "arm-gnu-toolchain-14.3.rel1-mingw-w64-i686-arm-none-eabi.exe"``
-- Open ``Builder\buildSettings.txt``
-  - Write the path to your CTRMap project after ``SET PROJECT_DIR=`` (Ex. ``SET PROJECT_DIR=MyFolder\MyCTRMapProject\``)
-  - Write the path to your CTRMap.jar file after ``SET CTRMAP_DIR=`` (Ex. ``SET CTRMAP_DIR=MyFolder\CTRMap\``)
-  - Write the path to your ARM GNU Toolchain bin folder after ``SET ARM_NONE_EABI_DIR=`` (leave like it is if you set that folder in the systems path)
-  - Write the path to your Java after ``SET JAVA_DIR=`` (leave like it is if you set that folder in the systems path)
 
 ## How to use
 To build a patch you first need to create a build project
@@ -65,7 +60,7 @@ If you need to create a new ESDB from an IDB use this [guide](https://ds-pokemon
 The ``settings.h`` file is to be used to declare pre-compilation definitions that are used to enable or disable code sections and assets  
 This is useful if you want to be able to activate and desavtivate features of your patch, if that is not the case you can leave it empty
 
-### Functionality
+## Functionality
 Once your patch is done you have the following commands when running the program:  
 - ``-install "Patch Dir"`` -> set up a build project
 - ``-build "Patch Dir"`` -> build only the modified files in the patch
@@ -78,4 +73,12 @@ Once your patch is done you have the following commands when running the program
 - ``-clear "Patch Dir"`` -> clear all build data (deletes "build" folder)
 - ``-uninstall "Patch Dir"`` -> remove the patch completely from the CTRMap project
   - ``-keep-settings`` -> don't delete the build settings file when uninstalling
-I recommend to uninstall before building after changing values in the ``settings.h`` file  
+I recommend to uninstall before building after changing values in the ``settings.h`` file
+
+### Installation Set Up
+After using the ``-install`` command, go to the newly created ``Builder`` folder in your build project  
+- Open ``Builder\buildSettings.txt``
+  - Write the path to your CTRMap project after ``SET PROJECT_DIR=`` (Ex. ``SET PROJECT_DIR=MyFolder\MyCTRMapProject\``)
+  - Write the path to your CTRMap.jar file after ``SET CTRMAP_DIR=`` (Ex. ``SET CTRMAP_DIR=MyFolder\CTRMap\``)
+  - Write the path to your ARM GNU Toolchain bin folder after ``SET ARM_NONE_EABI_DIR=`` (leave like it is if you set that folder in the systems path)
+  - Write the path to your Java after ``SET JAVA_DIR=`` (leave like it is if you set that folder in the systems path)
