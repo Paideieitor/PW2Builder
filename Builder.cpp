@@ -8,26 +8,35 @@
 
 using namespace std;
 
+string mainDir = string();
+
+bool whitelistLibs = false;
+bool whitelistAssets = false;
+bool keepSettings = false;
+vector<string> libraryData = vector<string>();
+vector<string> assetsData = vector<string>();
+
+vector<pair<string, string>> installLog = vector<pair<string, string>>();
+
 #define ARRAY_COUNT(arr) sizeof(arr) / sizeof(arr[0])
 
+#define NULL_CHARS string(" \n\t\"")
 #define SEPARATOR '\\'
 #define NOT_SEPARATOR '/'
 
 #define PATH_FORMAT(path) string("\"") + path + string("\"")
 
-#define MAIN_DIR ".."
+#define GLOBAL_DIR PathConcat(mainDir, "Global")
+#define HEADER_DIR PathConcat(mainDir, "Headers")
+#define PATCH_DIR PathConcat(mainDir, "Patches")
+#define LIB_DIR PathConcat(mainDir, "Libraries")
+#define ASSETS_DIR PathConcat(mainDir, "Assets")
+#define EXTERNAL_DIR PathConcat(mainDir, "Externals")
 
-#define BUILD_DIR PathConcat(MAIN_DIR, "build")
+#define BUILDER_DIR PathConcat(mainDir, "Builder")
+#define BUILD_DIR PathConcat(BUILDER_DIR, "build")
 
-#define GLOBAL_DIR PathConcat(MAIN_DIR, "Global")
-#define HEADER_DIR PathConcat(MAIN_DIR, "Headers")
-#define PATCH_DIR PathConcat(MAIN_DIR, "Patches")
-#define LIB_DIR PathConcat(MAIN_DIR, "Libraries")
-#define ASSETS_DIR PathConcat(MAIN_DIR, "Assets")
-
-#define EXTERNAL_DIR PathConcat(MAIN_DIR, "ExternalDependencies")
-
-#define ESDB_DIR PathConcat(MAIN_DIR, "ESDB.yml")
+#define ESDB_DIR PathConcat(mainDir, "ESDB.yml")
 
 #define CTRMAP_DIR "%CTRMAP_DIR%"
 #define ARM_NONE_EABI_DIR "%ARM_NONE_EABI_DIR%"
@@ -72,12 +81,13 @@ using namespace std;
 #define LINK_ESDB string("--esdb ") + PATH_FORMAT(ESDB_DIR) + ' '
 #define LINK_FLAGS "--fourcc DLXF --generate-relocations"
 
-#define BUILD_SETTINGS_PATH "buildSettings.txt"
+#define BUILD_SETTINGS_FILE "buildSettings.txt"
+#define BUILD_SETTINGS_PATH PathConcat(BUILDER_DIR, BUILD_SETTINGS_FILE)
 #define BUILD_SETTINGS_MAX_SIZE 8192
 #define BUILD_SETTINGS_PROJECT_DIR "SET PROJECT_DIR="
-#define BUILD_INSTALL_LOG "install.log"
+#define BUILD_INSTALL_LOG_PATH PathConcat(BUILDER_DIR, "install.log")
 
-#define SETTINGS_FILE PathConcat(MAIN_DIR, "settings.h")
+#define SETTINGS_FILE PathConcat(mainDir, "settings.h")
 #define SETTINGS_WHITELIST "whitelist.txt"
 #define SETTINGS_LIBRARIES PathConcat(LIB_DIR, SETTINGS_WHITELIST)
 #define SETTINGS_ASSETS PathConcat(ASSETS_DIR, SETTINGS_WHITELIST)
@@ -85,6 +95,8 @@ using namespace std;
 #define SETTINGS_INCLUDE(path) string("-include ") + PATH_FORMAT(path) + ' '
 #define SETTINGS_EXTENSION ".data"
 #define SETTINGS_GROUP_KEYWORD "<...>"
+
+#define INSTALL_LOG_SEPARATOR '<'
 
 enum CompileType
 {
@@ -351,10 +363,6 @@ bool CreateScript(const string& path, const string& buildScript)
 	return true;
 }
 
-bool whitelistLibs = false;
-bool whitelistAssets = false;
-vector<string> libraryData;
-vector<string> assetsData;
 string ProcompileDataFile(const string& path)
 {
 	string buildScript = "@ECHO OFF\n";
@@ -382,12 +390,14 @@ string ProcompileDataFile(const string& path)
 }
 void CleanLine(string& line)
 {
-	size_t start = line.find_first_not_of(' ');
+	size_t start = line.find_first_not_of(NULL_CHARS);
 	if (start == string::npos)
 		start = 0;
-	size_t end = line.find('\n');
+	size_t end = line.find_last_not_of(NULL_CHARS);
 	if (end == string::npos)
 		end = line.size();
+	else
+		++end;
 
 	line = line.substr(start, end - start);
 	int i = 0;
@@ -466,8 +476,6 @@ bool FindData(bool condition, const string& dataName, vector<string> data)
 	return false;
 }
 
-#define INSTALL_LOG_SEPARATOR '<'
-vector<pair<string, string>> installLog;
 void LoadInstallLog(const string& path)
 {
 	FILE* file = nullptr;
@@ -542,10 +550,17 @@ CompileType GetCompileType(const string& path)
 }
 bool GetFolderCompilationData(const string& path, CompileStructure& data)
 {
+	if (!filesystem::exists(path))
+	{
+		printf_s("Couldn't Compile %s\n", path.c_str());
+		printf_s("    Folder doesn't exist\n");
+		return false;
+	}
+
 	if (!filesystem::is_directory(path))
 	{
 		printf_s("Couldn't Compile %s\n", path.c_str());
-		printf_s("	Path is not a folder\n");
+		printf_s("    Path is not a folder\n");
 		return false;
 	}
 
@@ -576,7 +591,7 @@ bool GetFolderCompilationData(const string& path, CompileStructure& data)
 	if (data.objects.empty())
 	{
 		printf_s("Couldn't Compile %s\n", path.c_str());
-		printf_s("	No compilable files in folder\n");
+		printf_s("    No compilable files in folder\n");
 
 		data = CompileStructure();
 		return false;
@@ -586,7 +601,7 @@ bool GetFolderCompilationData(const string& path, CompileStructure& data)
 	if (data.name.empty())
 	{
 		printf_s("Couldn't Compile %s\n", path.c_str());
-		printf_s("	Could not resolve the output name\n");
+		printf_s("    Could not resolve the output name\n");
 
 		data = CompileStructure();
 		return false;
@@ -699,7 +714,7 @@ OutputObject CompileCompObject(const string& path, const CompileObject& object, 
 		case ARM:
 			break;
 		}
-		command += COMPILE_INCLUDE(MAIN_DIR);
+		command += COMPILE_INCLUDE(mainDir);
 		command += COMPILE_OUTPUT(output);
 		command += COMPILE_FLAGS;
 
@@ -793,7 +808,7 @@ bool BuildPatches(const string& path, const vector<CompileStructure>& patches, c
 	if (!global.objects.empty())
 		globalOut = CompileCompStruct(BUILD_DIR, global, buildScript, nullptr);
 	else
-		printf_s("No compilable data found in global!\n");
+		printf_s("No globals to compile!\n");
 
 	vector<OutputObject> patchesOut;
 	unsigned int upToDate = 0;
@@ -809,7 +824,7 @@ bool BuildPatches(const string& path, const vector<CompileStructure>& patches, c
 	if (patchesOut.empty())
 	{
 		printf_s("No compilable data found in any patch!\n");
-		return true;
+		return false;
 	}
 	if (patchesOut.size() == upToDate)
 		buildScript += ECHO_SUBTITLE("All patches are up to date!");
@@ -820,8 +835,13 @@ bool BuildPatches(const string& path, const vector<CompileStructure>& patches, c
 }
 bool BuildLibraries(const string& path, const vector<CompileObject>& libraries, string& buildScript)
 {
-	if (!libraries.empty())
-		buildScript += ECHO_TITLE("Building Libraries...");
+	if (libraries.empty())
+	{
+		printf_s("No libraries to build!\n");
+		return true;
+	}
+		
+	buildScript += ECHO_TITLE("Building Libraries...");
 
 	vector<OutputObject> libsOut;
 	unsigned int upToDate = 0;
@@ -838,7 +858,7 @@ bool BuildLibraries(const string& path, const vector<CompileObject>& libraries, 
 	if (libsOut.empty())
 	{
 		printf_s("No compilable data found in any library!\n");
-		return true;
+		return false;
 	}
 	if (libsOut.size() == upToDate)
 		buildScript += ECHO_SUBTITLE("All libraries are up to date!");
@@ -925,9 +945,42 @@ void MoveData(const string& directory, const string& output, const string& folde
 	}
 }
 
+bool CheckIfInstalled()
+{
+	if (!filesystem::exists(BUILDER_DIR))
+		return false;
+	return true;
+}
+
+bool Install()
+{
+	if (!filesystem::exists(BUILD_SETTINGS_FILE))
+	{
+		printf_s("Couldn't install, the default build settings file is missing!");
+		return false;
+	}
+	if (!FolderCreate(BUILDER_DIR))
+		return false;
+
+	std::error_code ec;
+	if (!filesystem::copy_file(BUILD_SETTINGS_FILE, BUILD_SETTINGS_PATH, filesystem::copy_options::overwrite_existing, ec))
+	{
+		printf_s("Couldn't install!");
+		printf_s("    Error copying file %s to %s (%s)\n", BUILD_SETTINGS_FILE, BUILD_SETTINGS_PATH.c_str(), ec.message().c_str());
+		return false;
+	}
+	return true;
+}
 bool Build() 
 {
-	LoadInstallLog(BUILD_INSTALL_LOG);
+	if (!CheckIfInstalled())
+	{
+		printf_s("Couldn't build, it's not installed!");
+		printf_s("    Use the -install command to correctly setup a build");
+		return false;
+	}
+
+	LoadInstallLog(BUILD_INSTALL_LOG_PATH);
 
 	if (!FolderCreate(BUILD_DIR))
 		return false;
@@ -945,7 +998,8 @@ bool Build()
 
 	printf_s("- PATCHES -\n");
 	vector<CompileStructure> patches;
-	GetPatchesCompilationData(PATCH_DIR, patches);
+	if (!GetPatchesCompilationData(PATCH_DIR, patches))
+		return false;
 
 	printf_s("- LIBRARIES -\n");
 	vector<CompileObject> libraries;
@@ -972,7 +1026,7 @@ bool Build()
 	printf_s("--- MOVING DATA ---\n");
 	MoveData(ASSETS_DIR, PROJECT_ASSETS_DIR(projectDir));
 
-	SaveInstallLog(BUILD_INSTALL_LOG);
+	SaveInstallLog(BUILD_INSTALL_LOG_PATH);
 
 	printf_s("--- BUILD PROCESS ---\n");
 	system(script.c_str());
@@ -980,6 +1034,13 @@ bool Build()
 }
 bool Clear()
 {
+	if (!CheckIfInstalled())
+	{
+		printf_s("Couldn't clear, it's not installed!");
+		printf_s("    Use the -install command to correctly setup a build");
+		return false;
+	}
+
 	if (!PathRemove(BUILD_DIR))
 		return false;
 
@@ -995,7 +1056,14 @@ bool Rebuild()
 }
 bool Uninstall()
 {
-	LoadInstallLog(BUILD_INSTALL_LOG);
+	if (!CheckIfInstalled())
+	{
+		printf_s("Couldn't uninstall, it's not installed!");
+		printf_s("    Use the -install command to correctly setup a build");
+		return false;
+	}
+
+	LoadInstallLog(BUILD_INSTALL_LOG_PATH);
 
 	for (size_t log = 0; log < installLog.size(); ++log)
 	{
@@ -1024,25 +1092,32 @@ bool Uninstall()
 	}
 		
 	installLog.clear();
-	PathRemove(BUILD_INSTALL_LOG);
+	PathRemove(BUILD_INSTALL_LOG_PATH);
 
 	if (!Clear())
 		return false;
+
+	if (!keepSettings)
+		PathRemove(BUILDER_DIR);
+
 	return true;
 }
 void Help()
 {
-	printf_s("-build -> build only the modified files in the patch\n");
-	printf_s("-rebuild -> build the patch from scratch\n");
+	printf_s("-install \"Patch Dir\" -> set up a build project\n");
+	printf_s("-build \"Patch Dir\" -> build only the modified files in the patch\n");
+	printf_s("-rebuild \"Patch Dir\" -> build the patch from scratch\n");
 	printf_s("    -whitelist-libs -> ignore any folder in \"Libraries\" that is not specified in \"Libraries\\whitelist.txt\"\n");
 	printf_s("    -whitelist-assets -> ignore any file in \"Assets\" that is not specified in \"Assets\\whitelist.txt\"\n");
 	printf_s("    -whitelist-all -> activate all whitelist functionalities\n");
 	printf_s("    -assets-override -> when a conflict appears when moving assets, the project asset gets automatically overriden\n");
 	printf_s("    -assets-keep -> when a conflict appears when moving assets, the asset is not moved keeping the project asset\n");
-	printf_s("-clear -> clear all build data (deletes \"build\" folder)\n");
-	printf_s("-uninstall -> remove the patch completely from the CTRMap project\n");
+	printf_s("-clear \"Patch Dir\" -> clear all build data (deletes \"build\" folder)\n");
+	printf_s("-uninstall \"Patch Dir\" -> remove the patch completely from the CTRMap project\n");
+	printf_s("    -keep-settings -> don't delete the build settings file when uninstalling\n");
 }
 
+#define INSTALL_COMMAND "-install"
 #define BUILD_COMMAND "-build"
 #define REBUILD_COMMAND "-rebuild"
 	#define WHITELIST_ALL_COMMAND "-whitelist-all"
@@ -1052,11 +1127,14 @@ void Help()
 	#define ASSETS_KEEP_COMMAND "-assets-keep"
 #define CLEAR_COMMAND "-clear"
 #define UNINSTALL_COMMAND "-uninstall"
+	#define KEEP_SETTINGS_COMMAND "-keep-settings"
 int main(int argc, char* argv[])
 {
 #if _DEBUG
+	mainDir = "..\\PW2Code";
 	whitelistLibs = true;
 	whitelistAssets = true;
+	keepSettings = true;
 	assetsHandling = ASK;
 	Build();
 #else
@@ -1073,13 +1151,29 @@ int main(int argc, char* argv[])
 				whitelistLibs = true;
 			else if (strcmp(argv[arg], WHITELIST_ASSETS_COMMAND) == 0)
 				whitelistAssets = true;
+			else if (strcmp(argv[arg], KEEP_SETTINGS_COMMAND) == 0)
+				keepSettings = true;
 			else if (strcmp(argv[arg], ASSETS_OVERRIDE_COMMAND) == 0)
 				assetsHandling = OVERRIDE;
 			else if (strcmp(argv[arg], ASSETS_KEEP_COMMAND) == 0)
 				assetsHandling = KEEP;
+			else
+			{
+				mainDir = argv[arg];
+				CleanLine(mainDir);
+				PathCorrectSeparator(mainDir);
+			}
 		}
 
-		if (strcmp(argv[1], BUILD_COMMAND) == 0)
+		if (mainDir.empty())
+		{
+			printf_s("You need to specify a directory to build!\n");
+			return 0;
+		}
+
+		if (strcmp(argv[1], INSTALL_COMMAND) == 0)
+			Install();
+		else if (strcmp(argv[1], BUILD_COMMAND) == 0)
 			Build();
 		else if (strcmp(argv[1], REBUILD_COMMAND) == 0)
 			Rebuild();
@@ -1093,4 +1187,6 @@ int main(int argc, char* argv[])
 	else
 		Help();
 #endif
+
+	return 0;
 }
