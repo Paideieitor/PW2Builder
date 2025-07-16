@@ -1,9 +1,0 @@
-/.vs
-*.log
-*.exe
-*.pdb
-*.sln
-*.vcxproj
-*.filters
-*.user
-/x64
