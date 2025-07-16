@@ -1140,7 +1140,7 @@ void Help()
 int main(int argc, char* argv[])
 {
 #if _DEBUG
-	mainDir = "..\\PW2Code - copia";
+	mainDir = "..\\PW2Code";
 	whitelistLibs = true;
 	whitelistAssets = true;
 	keepSettings = true;
