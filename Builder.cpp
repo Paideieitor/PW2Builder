@@ -384,7 +384,7 @@ string ProcompileDataFile(const string& path)
 	string script = SCRIPT_PATH(name);
 	if (!CreateScript(script, buildScript))
 		return string();
-	system(script.c_str());
+	system((PATH_FORMAT(script)).c_str());
 
 	return output;
 }
@@ -959,6 +959,11 @@ bool Install()
 		printf_s("Couldn't install, the default build settings file is missing!");
 		return false;
 	}
+	if (!filesystem::exists(SETTINGS_FILE))
+	{
+		printf_s("Couldn't install, the build project doesn't have a settings.h file!");
+		return false;
+	}
 	if (!FolderCreate(BUILDER_DIR))
 		return false;
 
@@ -969,6 +974,8 @@ bool Install()
 		printf_s("    Error copying file %s to %s (%s)\n", BUILD_SETTINGS_FILE, BUILD_SETTINGS_PATH.c_str(), ec.message().c_str());
 		return false;
 	}
+
+	printf_s("Installation complete!");
 	return true;
 }
 bool Build() 
@@ -1029,7 +1036,7 @@ bool Build()
 	SaveInstallLog(BUILD_INSTALL_LOG_PATH);
 
 	printf_s("--- BUILD PROCESS ---\n");
-	system(script.c_str());
+	system((PATH_FORMAT(script)).c_str());
 	return true;
 }
 bool Clear()
@@ -1044,6 +1051,7 @@ bool Clear()
 	if (!PathRemove(BUILD_DIR))
 		return false;
 
+	printf_s("Cleared build data!");
 	return true;
 }
 bool Rebuild()
@@ -1100,6 +1108,7 @@ bool Uninstall()
 	if (!keepSettings)
 		PathRemove(BUILDER_DIR);
 
+	printf("Uninstallation complete!\n");
 	return true;
 }
 void Help()
@@ -1131,7 +1140,7 @@ void Help()
 int main(int argc, char* argv[])
 {
 #if _DEBUG
-	mainDir = "..\\PW2Code";
+	mainDir = "..\\PW2Code - copia";
 	whitelistLibs = true;
 	whitelistAssets = true;
 	keepSettings = true;
