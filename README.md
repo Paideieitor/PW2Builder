@@ -72,8 +72,10 @@ Once your patch is done you have the following commands when running the program
   - ``-assets-keep`` -> when a conflict appears when moving assets, the asset is not moved keeping the project asset
 - ``-clear "Patch Dir"`` -> clear all build data (deletes "build" folder)
 - ``-uninstall "Patch Dir"`` -> remove the patch completely from the CTRMap project
-  - ``-keep-settings`` -> don't delete the build settings file when uninstalling
-I recommend to uninstall before building after changing values in the ``settings.h`` file
+  - ``-keep-settings`` -> don't delete the build settings file when uninstalling  
+  
+- ``custom-build`` "Custom Build Path" -> can be added to any command to specify a non-default Builder folder where the build settings are stored
+- ``-pause`` -> can be added to any command to pause the program before exiting
 
 ### Installation Set Up
 After using the ``-install`` command, go to the newly created ``Builder`` folder in your build project  
