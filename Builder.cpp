@@ -9,10 +9,13 @@
 using namespace std;
 
 string mainDir = string();
+string builderDir = string();
 
 bool whitelistLibs = false;
 bool whitelistAssets = false;
 bool keepSettings = false;
+bool customBuild = false;
+bool pause = false;
 vector<string> libraryData = vector<string>();
 vector<string> assetsData = vector<string>();
 
@@ -24,7 +27,7 @@ vector<pair<string, string>> installLog = vector<pair<string, string>>();
 #define SEPARATOR '\\'
 #define NOT_SEPARATOR '/'
 
-#define PATH_FORMAT(path) string("\"") + path + string("\"")
+#define PATH_FORMAT(path) (string("\"") + path + string("\""))
 
 #define GLOBAL_DIR PathConcat(mainDir, "Global")
 #define HEADER_DIR PathConcat(mainDir, "Headers")
@@ -33,7 +36,7 @@ vector<pair<string, string>> installLog = vector<pair<string, string>>();
 #define ASSETS_DIR PathConcat(mainDir, "Assets")
 #define EXTERNAL_DIR PathConcat(mainDir, "Externals")
 
-#define BUILDER_DIR PathConcat(mainDir, "Builder")
+#define BUILDER_DIR PathConcat(builderDir, "Builder")
 #define BUILD_DIR PathConcat(BUILDER_DIR, "build")
 
 #define ESDB_DIR PathConcat(mainDir, "ESDB.yml")
@@ -947,6 +950,8 @@ void MoveData(const string& directory, const string& output, const string& folde
 
 bool CheckIfInstalled()
 {
+	if (customBuild)
+		return true;
 	if (!filesystem::exists(BUILDER_DIR))
 		return false;
 	return true;
@@ -1039,7 +1044,7 @@ bool Build()
 	system((PATH_FORMAT(script)).c_str());
 	return true;
 }
-bool Clear()
+bool Clear(bool log = false)
 {
 	if (!CheckIfInstalled())
 	{
@@ -1051,15 +1056,8 @@ bool Clear()
 	if (!PathRemove(BUILD_DIR))
 		return false;
 
-	printf_s("Cleared build data!");
-	return true;
-}
-bool Rebuild()
-{
-	if (!Clear())
-		return false;
-	if (!Build())
-		return false;
+	if (log)
+		printf_s("Cleared build data!\n");
 	return true;
 }
 bool Uninstall()
@@ -1111,6 +1109,17 @@ bool Uninstall()
 	printf("Uninstallation complete!\n");
 	return true;
 }
+bool Rebuild()
+{
+	keepSettings = true;
+	if (!Uninstall())
+		return false;
+	if (!customBuild && !Install())
+		return false;
+	if (!Build())
+		return false;
+	return true;
+}
 void Help()
 {
 	printf_s("-install \"Patch Dir\" -> set up a build project\n");
@@ -1124,6 +1133,8 @@ void Help()
 	printf_s("-clear \"Patch Dir\" -> clear all build data (deletes \"build\" folder)\n");
 	printf_s("-uninstall \"Patch Dir\" -> remove the patch completely from the CTRMap project\n");
 	printf_s("    -keep-settings -> don't delete the build settings file when uninstalling\n");
+	printf_s("\n-custom-build \"Custom Build Path\" -> can be added to any command to specify a non-default Builder folder where the build settings are stored\n");
+	printf_s("\n-pause -> can be added to any command to pause the program before exiting\n");
 }
 
 #define INSTALL_COMMAND "-install"
@@ -1137,10 +1148,15 @@ void Help()
 #define CLEAR_COMMAND "-clear"
 #define UNINSTALL_COMMAND "-uninstall"
 	#define KEEP_SETTINGS_COMMAND "-keep-settings"
+#define CUSTOM_BUILD_COMMAND "-custom-build"
+#define PAUSE_COMMAND "-pause"
+
+#define RETURN if (pause) { printf("\nPress Enter to continue..."); getchar(); } return 0
 int main(int argc, char* argv[])
 {
 #if _DEBUG
 	mainDir = "..\\PW2Code";
+	builderDir = mainDir;
 	whitelistLibs = true;
 	whitelistAssets = true;
 	keepSettings = true;
@@ -1166,6 +1182,18 @@ int main(int argc, char* argv[])
 				assetsHandling = OVERRIDE;
 			else if (strcmp(argv[arg], ASSETS_KEEP_COMMAND) == 0)
 				assetsHandling = KEEP;
+			else if (strcmp(argv[arg], CUSTOM_BUILD_COMMAND) == 0)
+			{
+				++arg;
+				if (arg >= argc || argv[arg][0] == '-')
+				{
+					printf_s("You need to specify a directory with the build settings for the custom build!\n");
+					RETURN;
+				}
+				builderDir = argv[arg];
+			}
+			else if (strcmp(argv[arg], PAUSE_COMMAND) == 0)
+				pause = true;
 			else
 			{
 				mainDir = argv[arg];
@@ -1177,9 +1205,14 @@ int main(int argc, char* argv[])
 		if (mainDir.empty())
 		{
 			printf_s("You need to specify a directory to build!\n");
-			return 0;
+			RETURN;
 		}
 
+		if (builderDir.empty())
+			builderDir = mainDir;
+		else
+			customBuild = (mainDir != builderDir);
+			
 		if (strcmp(argv[1], INSTALL_COMMAND) == 0)
 			Install();
 		else if (strcmp(argv[1], BUILD_COMMAND) == 0)
@@ -1187,7 +1220,7 @@ int main(int argc, char* argv[])
 		else if (strcmp(argv[1], REBUILD_COMMAND) == 0)
 			Rebuild();
 		else if (strcmp(argv[1], CLEAR_COMMAND) == 0)
-			Clear();
+			Clear(true);
 		else if (strcmp(argv[1], UNINSTALL_COMMAND) == 0)
 			Uninstall();
 		else
@@ -1197,5 +1230,5 @@ int main(int argc, char* argv[])
 		Help();
 #endif
 
-	return 0;
+	RETURN;
 }
