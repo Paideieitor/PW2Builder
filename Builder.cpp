@@ -1151,12 +1151,13 @@ void Help()
 #define CUSTOM_BUILD_COMMAND "-custom-build"
 #define PAUSE_COMMAND "-pause"
 
-#define RETURN if (pause) { printf("\nPress Enter to continue..."); getchar(); } return 0
+#define RETURN if (pause) { printf("\nPress Enter to continue...\n"); getchar(); } return 0
 int main(int argc, char* argv[])
 {
 #if _DEBUG
-	mainDir = "..\\PW2Code";
-	builderDir = mainDir;
+	mainDir = "..\\Code\\PW2Code";
+	builderDir = "..\\Editor\\Projects\\PW2";
+	customBuild = (mainDir != builderDir);
 	whitelistLibs = true;
 	whitelistAssets = true;
 	keepSettings = true;
