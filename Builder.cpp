@@ -1155,8 +1155,9 @@ void Help()
 int main(int argc, char* argv[])
 {
 #if _DEBUG
+
 	mainDir = "..\\Code\\PW2Code";
-	builderDir = "..\\Editor\\Projects\\PW2";
+	builderDir = "..\\CTRMap\\PW2\\pw2";
 	customBuild = (mainDir != builderDir);
 	whitelistLibs = true;
 	whitelistAssets = true;
