@@ -90,7 +90,8 @@ vector<pair<string, string>> installLog = vector<pair<string, string>>();
 #define BUILD_SETTINGS_PROJECT_DIR "SET PROJECT_DIR="
 #define BUILD_INSTALL_LOG_PATH PathConcat(BUILDER_DIR, "install.log")
 
-#define SETTINGS_FILE PathConcat(mainDir, "settings.h")
+#define SETTINGS_NAME "settings.h"
+#define SETTINGS_FILE PathConcat(mainDir, SETTINGS_NAME)
 #define SETTINGS_WHITELIST "whitelist.txt"
 #define SETTINGS_LIBRARIES PathConcat(LIB_DIR, SETTINGS_WHITELIST)
 #define SETTINGS_ASSETS PathConcat(ASSETS_DIR, SETTINGS_WHITELIST)
@@ -269,6 +270,19 @@ bool FileCompare(const string& input, const string& output)
 	delete[] data;
 	return true;
 }
+bool FileCopy(const string& source, const string& dest)
+{
+	if (!filesystem::exists(source))
+		return false;
+	
+	std::error_code ec;
+	if (!filesystem::copy_file(source, dest, filesystem::copy_options::overwrite_existing, ec))
+	{
+		printf_s("Error copying file %s to %s (%s)\n", source.c_str(), dest.c_str(), ec.message().c_str());
+		return false;
+	}
+	return true;
+}
 
 vector<string> FolderGetList(const string& path)
 {
@@ -416,7 +430,7 @@ bool LoadDataFile(const string& path, vector<string>& data)
 	fopen_s(&file, precompiled.c_str(), "r");
 	if (!file)
 	{
-		printf_s("Couldn't open %s\n", path.c_str());
+		printf_s("Couldn't open %s\n", precompiled.c_str());
 		printf_s("	Error opening whitelist file\n");
 		return false;
 	}
@@ -935,12 +949,8 @@ void MoveData(const string& directory, const string& output, const string& folde
 				}
 			}
 
-			std::error_code ec;
-			if (!filesystem::copy_file(entry, outputFile, filesystem::copy_options::overwrite_existing, ec))
-			{
-				printf_s("Error copying file %s to %s (%s)\n", entry.c_str(), outputFile.c_str(), ec.message().c_str());
+			if (!FileCopy(entry, outputFile))
 				continue;
-			}
 
 			printf("Added file: %s \n", outputFile.c_str());
 			AddInstallLog(outputFile, entry);
@@ -996,6 +1006,8 @@ bool Build()
 
 	if (!FolderCreate(BUILD_DIR))
 		return false;
+
+	FileCopy(PATH_FORMAT(SETTINGS_FILE), PATH_FORMAT(PathConcat(BUILD_DIR, SETTINGS_NAME)));
 
 	printf_s("--- LOADING DATA ---\n");
 	if (whitelistLibs && !LoadDataFile(SETTINGS_LIBRARIES, libraryData))
@@ -1151,7 +1163,7 @@ void Help()
 #define CUSTOM_BUILD_COMMAND "-custom-build"
 #define PAUSE_COMMAND "-pause"
 
-#define RETURN if (pause) { printf("\nPress Enter to continue...\n"); getchar(); } return 0
+#define RETURN if (pause) { printf("\nPress Enter to continue...\n"); {char dummy = getchar();} } return 0
 int main(int argc, char* argv[])
 {
 #if _DEBUG
